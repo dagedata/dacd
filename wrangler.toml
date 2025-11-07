@@ -4,3 +4,8 @@ compatibility_date = "2025-11-07"
 
 account_id = "d10d7d31d0357fc9e97f53dff076a10f"
 workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "d1"
+database_id = "e7e42275-827b-4c49-bbfb-047652f034c1"
