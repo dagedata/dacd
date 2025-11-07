@@ -1,0 +1,18 @@
+
+
+curl -X POST https://db.ddata.workers.dev/api/initsystem \
+  -H "Authorization: Bearer DaWriteToken111"
+  
+curl -X POST https://db.ddata.workers.dev/api/create-table \
+  -H "Authorization: Bearer DaWriteToken111" \
+	-d '{"tableName":"test1"}'
+
+
+curl -X POST https://d1.ddata.workers.dev/api \
+  -H "Authorization: Bearer DaWriteToken111" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "request_id": "r1",
+    "action": "post",
+    "payload": { "c1": "hello", "i1": 123 }
+  }'

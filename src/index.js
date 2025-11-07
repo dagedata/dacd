@@ -60,7 +60,7 @@ async function handleApiRequest(action, payload, env) {
     case "post": {
       const keys = Object.keys(payload);
       const placeholders = keys.map(() => "?").join(",");
-      const sql = `INSERT INTO ${tableName} (${keys.join(",")}) VALUES (${placeholders})`;
+      const sql = `INSERT INTO ${C_tableName} (${keys.join(",")}) VALUES (${placeholders})`;
       const values = keys.map(k => payload[k]);
       const result = await db.prepare(sql).bind(...values).run();
       return { insertedId: result.lastInsertRowid };
@@ -72,14 +72,14 @@ async function handleApiRequest(action, payload, env) {
       const keys = Object.keys(fields);
       if (keys.length === 0) throw new Error("No fields to update");
       const setClause = keys.map(k => `${k} = ?`).join(", ");
-      const sql = `UPDATE ${tableName} SET ${setClause}, v2 = CURRENT_TIMESTAMP WHERE id = ?`;
+      const sql = `UPDATE ${C_tableName} SET ${setClause}, v2 = CURRENT_TIMESTAMP WHERE id = ?`;
       const values = [...keys.map(k => fields[k]), id];
       const result = await db.prepare(sql).bind(...values).run();
       return { changes: result.changes };
     }
 
     case "get": {
-      let sql = `SELECT * FROM ${tableName}`;
+      let sql = `SELECT * FROM ${C_tableName}`;
       const keys = Object.keys(payload);
       let values = [];
       if (keys.length > 0) {
@@ -96,7 +96,7 @@ async function handleApiRequest(action, payload, env) {
       const keys = Object.keys(payload);
       if (keys.length === 0) throw new Error("Need at least one condition to delete");
       const where = keys.map(k => `${k} = ?`).join(" AND ");
-      const sql = `DELETE FROM ${tableName} WHERE ${where}`;
+      const sql = `DELETE FROM ${C_tableName} WHERE ${where}`;
       const values = keys.map(k => payload[k]);
       const result = await db.prepare(sql).bind(...values).run();
       return { deleted: result.changes };
@@ -156,3 +156,5 @@ async function postLogToGateway(request_id, level, message) {
     body: JSON.stringify(body)
   }).catch(err => console.error("Error posting log:", err));
 }
+
+const C_tableName = "test1";
