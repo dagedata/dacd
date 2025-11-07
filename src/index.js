@@ -1,6 +1,6 @@
 export default {
   async fetch(request, env, ctx) {
-    return new Response("Hello World from Cloudflare!", {
+    return new Response("Hello World from github!", {
       headers: { "content-type": "text/plain" },
     });
   },
