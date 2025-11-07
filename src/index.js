@@ -22,8 +22,8 @@ async function handleApi(request, env) {
     return nack("unknown", "UNAUTHORIZED", "Missing or invalid Authorization header");
   }
 
-  console.log(token, env.DA_WRITETOKEN);
   const token = auth.split(" ")[1];
+  console.log(token, env.DA_WRITETOKEN);
   if (token !== env.DA_WRITETOKEN) {
     return nack("unknown", "INVALID_TOKEN", "Token authentication failed");
   }
