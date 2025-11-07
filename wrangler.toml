@@ -12,3 +12,6 @@ database_id = "e7e42275-827b-4c49-bbfb-047652f034c1"
 
 [vars]
 DA_WRITETOKEN = "DaWriteToken111"
+
+[observability]
+enabled = true
