@@ -17,8 +17,8 @@ export default {
 };
 
 // ---------- DB ACTIONS ----------
-async function handleApiRequest(action, payload, env) {
-  const db = env.DB;
+async function handleApiRequest(action, payload) {
+  const db = G_DB
   if (payload.table_name && payload.table_name !== "") {
     G_tableName = payload.table_name
   }
@@ -110,7 +110,7 @@ async function handleApi(request, env) {
   G_DB = env.DB;
 
   try {
-    const ret = await handleApiRequest(action, body.payload, env);
+    const ret = await handleApiRequest(action, body.payload);
     
     if (ret == null) {
       // ✅ clean success
@@ -177,6 +177,8 @@ async function postLogToGateway(request_id, level, message) {
   }).catch(err => console.error("Error posting log:", err));
 }
 
+let G_ENV = null;
+let G_DB = null;
 let G_tableName = "test1";
 const allowedColumns = [
   "c1", "c2", "c3", "i1", "i2", "i3", "d1", "d2", "d3", "t1", "t2", "t3", "v1", "v2", "v3"
