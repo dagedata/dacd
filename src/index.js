@@ -212,4 +212,4 @@ const allowedColumns = [
 const C_LogServiceUrl = "https://demo2.dglog.workers.dev/api";
 const C_LogServiceToken = "Demo111+";
 const C_ServiceID = "dacds";   // dage common database service;
-const C_InstanceID = "dev1";    //
+const C_InstanceID = "dev1";
