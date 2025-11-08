@@ -185,7 +185,7 @@ async function postLogToGateway(request_id, level, message) {
     }
   };
 
-  fetch(url, {
+  await fetch(url, {
     method: "POST",
     headers: {
       "Authorization": "Bearer aaa",
