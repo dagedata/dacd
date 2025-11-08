@@ -1,3 +1,5 @@
+
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -14,54 +16,18 @@ export default {
   },
 };
 
-// ---------- MAIN HANDLER ----------
-async function handleApi(request, env) {
-  // Auth check
-  const auth = request.headers.get("Authorization");
-  if (!auth || !auth.startsWith("Bearer ")) {
-    return nack("unknown", "UNAUTHORIZED", "Missing or invalid Authorization header");
-  }
-
-  const token = auth.split(" ")[1];
-  console.log(token, env.DA_WRITETOKEN);
-  if (token !== env.DA_WRITETOKEN) {
-    return nack("unknown", "INVALID_TOKEN", "Token authentication failed");
-  }
-
-  // Parse JSON
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return nack("unknown", "INVALID_JSON", "Malformed JSON body");
-  }
-
-  const requestId = body.request_id || "unknown";
-  const action = (body.action || "").toLowerCase();
-
-  if (!body.payload || typeof body.payload !== "object") {
-    return nack(requestId, "INVALID_FIELD", "Missing or invalid payload object");
-  }
-
-  try {
-    const result = await handleApiRequest(action, body.payload, env);
-    return ack(requestId, result);
-  } catch (err) {
-    await errDelegate(`handleApiRequest failed: ${err.message}`);
-    return nack(requestId, "DB_ERROR", err.message);
-  }
-}
-
 // ---------- DB ACTIONS ----------
 async function handleApiRequest(action, payload, env) {
-  const tableName = "your_table_name";
   const db = env.DB;
 
+  // Filter out the table_name from payload
+  const keys = Object.keys(payload).filter(key => key !== "table_name");
+  const tableName = payload.table_name || G_tableName;
+  
   switch (action) {
     case "post": {
-      const keys = Object.keys(payload);
       const placeholders = keys.map(() => "?").join(",");
-      const sql = `INSERT INTO ${C_tableName} (${keys.join(",")}) VALUES (${placeholders})`;
+      const sql = `INSERT INTO ${tableName} (${keys.join(",")}) VALUES (${placeholders})`;
       const values = keys.map(k => payload[k]);
       const result = await db.prepare(sql).bind(...values).run();
       return { insertedId: result.lastInsertRowid };
@@ -70,18 +36,16 @@ async function handleApiRequest(action, payload, env) {
     case "put": {
       if (!payload.id) throw new Error("Missing 'id' for update");
       const { id, ...fields } = payload;
-      const keys = Object.keys(fields);
       if (keys.length === 0) throw new Error("No fields to update");
       const setClause = keys.map(k => `${k} = ?`).join(", ");
-      const sql = `UPDATE ${C_tableName} SET ${setClause}, v2 = CURRENT_TIMESTAMP WHERE id = ?`;
+      const sql = `UPDATE ${tableName} SET ${setClause}, v2 = CURRENT_TIMESTAMP WHERE id = ?`;
       const values = [...keys.map(k => fields[k]), id];
       const result = await db.prepare(sql).bind(...values).run();
       return { changes: result.changes };
     }
 
     case "get": {
-      let sql = `SELECT * FROM ${C_tableName}`;
-      const keys = Object.keys(payload);
+      let sql = `SELECT * FROM ${tableName}`;
       let values = [];
       if (keys.length > 0) {
         const where = keys.map(k => `${k} = ?`).join(" AND ");
@@ -94,10 +58,71 @@ async function handleApiRequest(action, payload, env) {
     }
 
     case "delete": {
-      const keys = Object.keys(payload);
       if (keys.length === 0) throw new Error("Need at least one condition to delete");
       const where = keys.map(k => `${k} = ?`).join(" AND ");
-      const sql = `DELETE FROM ${C_tableName} WHERE ${where}`;
+      const sql = `DELETE FROM ${tableName} WHERE ${where}`;
+      const values = keys.map(k => payload[k]);
+      const result = await db.prepare(sql).bind(...values).run();
+      return { deleted: result.changes };
+    }
+
+    default:
+      throw new Error("Unknown action");
+  }
+}
+
+
+// ---------- DB ACTIONS ----------
+async function handleApiRequest(action, payload, env) {
+  const db = env.DB;
+  if (payload.table_name && payload.table_name !== "") {
+    G_tableName = payload.table_name
+  }
+
+  const keys = Object.keys(payload).filter(key => key !== "table_name");
+  const invalidKeys = keys.filter(key => !allowedColumns.includes(key));
+  if (invalidKeys.length > 0) {
+    return nack(payload.request_id, "INVALID_COLUMNS", `Invalid columns: ${invalidKeys.join(", ")}`);
+  }
+
+  switch (action) {
+    case "post": {
+      const placeholders = keys.map(() => "?").join(",");
+      const sql = `INSERT INTO ${G_tableName} (${keys.join(",")}) VALUES (${placeholders})`;
+      const values = keys.map(k => payload[k]);
+      const result = await db.prepare(sql).bind(...values).run();
+      return { insertedId: result.lastInsertRowid };
+    }
+
+
+    case "put": {
+      if (!payload.id) throw new Error("Missing 'id' for update");
+      const { id, ...fields } = payload;
+      if (keys.length === 0) throw new Error("No fields to update");
+      const setClause = keys.map(k => `${k} = ?`).join(", ");
+      const sql = `UPDATE ${G_tableName} SET ${setClause}, v2 = CURRENT_TIMESTAMP WHERE id = ?`;
+      const values = [...keys.map(k => fields[k]), id];
+      const result = await db.prepare(sql).bind(...values).run();
+      return { changes: result.changes };
+    }
+
+    case "get": {
+      let sql = `SELECT * FROM ${G_tableName}`;
+      let values = [];
+      if (keys.length > 0) {
+        const where = keys.map(k => `${k} = ?`).join(" AND ");
+        sql += ` WHERE ${where}`;
+        values = keys.map(k => payload[k]);
+      }
+      const stmt = db.prepare(sql).bind(...values);
+      const rows = await stmt.all();
+      return { data: rows.results };
+    }
+
+    case "delete": {
+      if (keys.length === 0) throw new Error("Need at least one condition to delete");
+      const where = keys.map(k => `${k} = ?`).join(" AND ");
+      const sql = `DELETE FROM ${G_tableName} WHERE ${where}`;
       const values = keys.map(k => payload[k]);
       const result = await db.prepare(sql).bind(...values).run();
       return { deleted: result.changes };
@@ -134,15 +159,15 @@ async function errDelegate(msg) {
 }
 
 async function postLogToGateway(request_id, level, message) {
-  const url = "https://demo2.dglog.workers.dev/api";
+  const url = C_LogServiceUrl;
   const body = {
     version: "v1",
     request_id,
     service: "log",
     action: "append",
     payload: {
-      service: "dademo",
-      instance: "test-1",
+      service: C_ServiceID,
+      instance: C_InstanceID,
       level,
       message
     }
@@ -158,4 +183,10 @@ async function postLogToGateway(request_id, level, message) {
   }).catch(err => console.error("Error posting log:", err));
 }
 
-const C_tableName = "test1";
+let G_tableName = "test1";
+const allowedColumns = [
+  "c1", "c2", "c3", "i1", "i2", "i3", "d1", "d2", "d3", "t1", "t2", "t3", "v1", "v2", "v3"
+];
+const C_LogServiceUrl = "https://demo2.dglog.workers.dev/api";
+const C_ServiceID = "dacds";   // dage common database service;
+const C_InstanceID = "dev1";    //

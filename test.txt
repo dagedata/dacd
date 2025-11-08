@@ -14,5 +14,5 @@ curl -X POST https://d1.ddata.workers.dev/api \
   -d '{
     "request_id": "r1",
     "action": "post",
-    "payload": { "c1": "hello", "i1": 123 }
+    "payload": { "c2": "hello2", "i2": 234 }
   }'
