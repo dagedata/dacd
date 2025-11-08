@@ -27,7 +27,7 @@ async function handleApiRequest(action, payload) {
   const invalidKeys = keys.filter(key => !allowedColumns.includes(key));
   if (invalidKeys.length > 0) {
     await errDelegate(`Invalid columns in payload: ${invalidKeys.join(", ")}`);
-    return nack(payload.request_id, "INVALID_COLUMNS", `Invalid columns: ${invalidKeys.join(", ")}`);
+    return { error: `Invalid columns: ${invalidKeys.join(", ")}` };
   }
 
   try {
