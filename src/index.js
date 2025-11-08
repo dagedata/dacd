@@ -169,7 +169,6 @@ async function errDelegate(msg) {
   console.error(msg);
   await postLogToGateway("11", 11, `❌ *Error*\n${msg}`);
 }
-
 async function postLogToGateway(request_id, level, message) {
   const url = C_LogServiceUrl;
   const body = {
@@ -185,16 +184,24 @@ async function postLogToGateway(request_id, level, message) {
     }
   };
 
-  const resp1 = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Authorization": "Bearer aaa",
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(body)
-  }).catch(err => console.error("Error posting log:", err));
-  console.log(await resp1.text())
+  try {
+    const resp1 = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer aaa",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
+
+    const text = await resp1.text();
+    console.log("Log service response:", text);
+
+  } catch (err) {
+    console.error("❌ Error posting log:", err.message);
+  }
 }
+
 
 let G_ENV = null;
 let G_DB = null;
