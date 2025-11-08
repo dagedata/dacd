@@ -188,7 +188,7 @@ async function postLogToGateway(request_id, level, message) {
     const resp1 = await fetch(url, {
       method: "POST",
       headers: {
-        "Authorization": "Bearer aaa",
+        "Authorization": `Bearer ${C_LogServiceToken}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify(body)
@@ -210,5 +210,6 @@ const allowedColumns = [
   "c1", "c2", "c3", "i1", "i2", "i3", "d1", "d2", "d3", "t1", "t2", "t3", "v1", "v2", "v3"
 ];
 const C_LogServiceUrl = "https://demo2.dglog.workers.dev/api";
+const C_LogServiceToken = "Demo111+";
 const C_ServiceID = "dacds";   // dage common database service;
 const C_InstanceID = "dev1";    //
