@@ -19,62 +19,6 @@ export default {
 // ---------- DB ACTIONS ----------
 async function handleApiRequest(action, payload, env) {
   const db = env.DB;
-
-  // Filter out the table_name from payload
-  const keys = Object.keys(payload).filter(key => key !== "table_name");
-  const tableName = payload.table_name || G_tableName;
-  
-  switch (action) {
-    case "post": {
-      const placeholders = keys.map(() => "?").join(",");
-      const sql = `INSERT INTO ${tableName} (${keys.join(",")}) VALUES (${placeholders})`;
-      const values = keys.map(k => payload[k]);
-      const result = await db.prepare(sql).bind(...values).run();
-      return { insertedId: result.lastInsertRowid };
-    }
-
-    case "put": {
-      if (!payload.id) throw new Error("Missing 'id' for update");
-      const { id, ...fields } = payload;
-      if (keys.length === 0) throw new Error("No fields to update");
-      const setClause = keys.map(k => `${k} = ?`).join(", ");
-      const sql = `UPDATE ${tableName} SET ${setClause}, v2 = CURRENT_TIMESTAMP WHERE id = ?`;
-      const values = [...keys.map(k => fields[k]), id];
-      const result = await db.prepare(sql).bind(...values).run();
-      return { changes: result.changes };
-    }
-
-    case "get": {
-      let sql = `SELECT * FROM ${tableName}`;
-      let values = [];
-      if (keys.length > 0) {
-        const where = keys.map(k => `${k} = ?`).join(" AND ");
-        sql += ` WHERE ${where}`;
-        values = keys.map(k => payload[k]);
-      }
-      const stmt = db.prepare(sql).bind(...values);
-      const rows = await stmt.all();
-      return { data: rows.results };
-    }
-
-    case "delete": {
-      if (keys.length === 0) throw new Error("Need at least one condition to delete");
-      const where = keys.map(k => `${k} = ?`).join(" AND ");
-      const sql = `DELETE FROM ${tableName} WHERE ${where}`;
-      const values = keys.map(k => payload[k]);
-      const result = await db.prepare(sql).bind(...values).run();
-      return { deleted: result.changes };
-    }
-
-    default:
-      throw new Error("Unknown action");
-  }
-}
-
-
-// ---------- DB ACTIONS ----------
-async function handleApiRequest(action, payload, env) {
-  const db = env.DB;
   if (payload.table_name && payload.table_name !== "") {
     G_tableName = payload.table_name
   }
