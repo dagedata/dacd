@@ -136,7 +136,7 @@ async function handleApi(request, env) {
     } else {
       // ❌ something wrong — log and nack
       await errDelegate(`handleApiRequest failed: ${JSON.stringify(ret, null, 2)}`);
-      return nack(requestId, "REQUEST_FAILED", "Operation failed"); 
+      return nack(requestId, "REQUEST_FAILED", JSON.stringify(ret, null, 2)); 
     }
 
   } catch (err) {
