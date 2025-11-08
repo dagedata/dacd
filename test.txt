@@ -5,7 +5,7 @@ curl -X POST https://db.ddata.workers.dev/api/initsystem \
   
 curl -X POST https://db.ddata.workers.dev/api/create-table \
   -H "Authorization: Bearer DaWriteToken111" \
-	-d '{"tableName":"test1"}'
+	-d '{"tableName":"test2"}'
 
 
 
@@ -15,7 +15,7 @@ curl -X POST https://d1.ddata.workers.dev/api \
   -d '{
     "request_id": "r2",
     "action": "post",
-    "payload": { "c2": "hello3", "i2": 3 }
+    "payload": { "c2": "hello3", "i2": 3, "table_name": "test2", "wrongname": "wrongvalue" }
   }'
 
 

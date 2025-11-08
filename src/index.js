@@ -18,67 +18,85 @@ export default {
 
 // ---------- DB ACTIONS ----------
 async function handleApiRequest(action, payload) {
-  const db = G_DB
+  const db = G_DB;
   if (payload.table_name && payload.table_name !== "") {
-    G_tableName = payload.table_name
+    G_tableName = payload.table_name;
   }
 
   const keys = Object.keys(payload).filter(key => key !== "table_name");
   const invalidKeys = keys.filter(key => !allowedColumns.includes(key));
   if (invalidKeys.length > 0) {
+    await errDelegate(`Invalid columns in payload: ${invalidKeys.join(", ")}`);
     return nack(payload.request_id, "INVALID_COLUMNS", `Invalid columns: ${invalidKeys.join(", ")}`);
   }
 
-  switch (action) {
-    case "post": {
-      const placeholders = keys.map(() => "?").join(",");
-      const sql = `INSERT INTO ${G_tableName} (${keys.join(",")}) VALUES (${placeholders})`;
-      const values = keys.map(k => payload[k]);
-      await db.prepare(sql).bind(...values).run();
-      return null; // ✅ success
-    }
-
-    case "put": {
-      if (!payload.id) return { error: "Missing 'id' for update" };
-      if (keys.length === 0) return { error: "No fields to update" };
-
-      const { id, ...fields } = payload;
-      const setClause = keys.map(k => `${k} = ?`).join(", ");
-      const sql = `UPDATE ${G_tableName} SET ${setClause}, v2 = CURRENT_TIMESTAMP WHERE id = ?`;
-      const values = [...keys.map(k => fields[k]), id];
-      await db.prepare(sql).bind(...values).run();
-      return null; // ✅ success
-    }
-
-    case "get": {
-      let sql = `SELECT * FROM ${G_tableName}`;
-      let values = [];
-      if (keys.length > 0) {
-        const where = keys.map(k => `${k} = ?`).join(" AND ");
-        sql += ` WHERE ${where}`;
-        values = keys.map(k => payload[k]);
+  try {
+    switch (action) {
+      case "post": {
+        const placeholders = keys.map(() => "?").join(",");
+        const sql = `INSERT INTO ${G_tableName} (${keys.join(",")}) VALUES (${placeholders})`;
+        const values = keys.map(k => payload[k]);
+        await db.prepare(sql).bind(...values).run();
+        return null; // ✅ success
       }
-      const stmt = db.prepare(sql).bind(...values);
-      const rows = await stmt.all();
-      if (!rows.results || rows.results.length === 0)
-        return { error: "No data found" };
-      return null; // ✅ success (you can still log rows if needed)
-    }
 
-    case "delete": {
-      if (keys.length === 0)
-        return { error: "Need at least one condition to delete" };
-      const where = keys.map(k => `${k} = ?`).join(" AND ");
-      const sql = `DELETE FROM ${G_tableName} WHERE ${where}`;
-      const values = keys.map(k => payload[k]);
-      await db.prepare(sql).bind(...values).run();
-      return null; // ✅ success
-    }
+      case "put": {
+        if (!payload.id) {
+          await errDelegate("Missing 'id' for update");
+          return { error: "Missing 'id' for update" };
+        }
+        if (keys.length === 0) {
+          await errDelegate("No fields to update");
+          return { error: "No fields to update" };
+        }
 
-    default:
-      return { error: "Unknown action" };
+        const { id, ...fields } = payload;
+        const setClause = keys.map(k => `${k} = ?`).join(", ");
+        const sql = `UPDATE ${G_tableName} SET ${setClause}, v2 = CURRENT_TIMESTAMP WHERE id = ?`;
+        const values = [...keys.map(k => fields[k]), id];
+        await db.prepare(sql).bind(...values).run();
+        return null; // ✅ success
+      }
+
+      case "get": {
+        let sql = `SELECT * FROM ${G_tableName}`;
+        let values = [];
+        if (keys.length > 0) {
+          const where = keys.map(k => `${k} = ?`).join(" AND ");
+          sql += ` WHERE ${where}`;
+          values = keys.map(k => payload[k]);
+        }
+        const stmt = db.prepare(sql).bind(...values);
+        const rows = await stmt.all();
+        if (!rows.results || rows.results.length === 0) {
+          await errDelegate(`No data found in ${G_tableName}`);
+          return { error: "No data found" };
+        }
+        return null; // ✅ success
+      }
+
+      case "delete": {
+        if (keys.length === 0) {
+          await errDelegate("No condition provided for delete");
+          return { error: "Need at least one condition to delete" };
+        }
+        const where = keys.map(k => `${k} = ?`).join(" AND ");
+        const sql = `DELETE FROM ${G_tableName} WHERE ${where}`;
+        const values = keys.map(k => payload[k]);
+        await db.prepare(sql).bind(...values).run();
+        return null; // ✅ success
+      }
+
+      default:
+        await errDelegate(`Unknown action: ${action}`);
+        return { error: "Unknown action" };
+    }
+  } catch (err) {
+    await errDelegate(`DB operation failed: ${err.message}`);
+    return { error: err.message };
   }
 }
+
 
 async function handleApi(request, env) {
   // Auth check
