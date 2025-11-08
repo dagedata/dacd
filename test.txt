@@ -13,9 +13,9 @@ curl -X POST https://d1.ddata.workers.dev/api \
   -H "Authorization: Bearer DaWriteToken111" \
   -H "Content-Type: application/json" \
   -d '{
-    "request_id": "r3",
+    "request_id": "r4",
     "action": "post",
-    "payload": { "c2": "hello3", "i2": 3, "table_name": "test2", "wrongname1": "wrongvalue1" }
+    "payload": { "c2": "hello3", "i2": 3, "table_name": "test2", "wrongname2": "wrongvalue1" }
   }'
 
 

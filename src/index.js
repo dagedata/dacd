@@ -1,8 +1,9 @@
 
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    G_CTX = ctx
 
     if (request.method !== "POST") {
       return new Response("Method Not Allowed", { status: 405 });
@@ -166,7 +167,7 @@ function jsonResponse(obj, status = 200) {
 // ---------- LOGGING ----------
 async function errDelegate(msg) {
   console.error(msg);
-  await postLogToGateway("11", 11, `❌ *Error*\n${msg}`);
+  G_CTX.waitUntil(postLogToGateway("11", 11, `❌ *Error*\n${msg}`));
 }
 async function postLogToGateway(request_id, level, message) {
   const url = C_LogServiceUrl;
@@ -204,6 +205,7 @@ async function postLogToGateway(request_id, level, message) {
 
 let G_ENV = null;
 let G_DB = null;
+let G_CTX = null;
 let G_tableName = "test1";
 const allowedColumns = [
   "c1", "c2", "c3", "i1", "i2", "i3", "d1", "d2", "d3", "t1", "t2", "t3", "v1", "v2", "v3"
