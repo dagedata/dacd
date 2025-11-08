@@ -34,20 +34,20 @@ async function handleApiRequest(action, payload, env) {
       const placeholders = keys.map(() => "?").join(",");
       const sql = `INSERT INTO ${G_tableName} (${keys.join(",")}) VALUES (${placeholders})`;
       const values = keys.map(k => payload[k]);
-      const result = await db.prepare(sql).bind(...values).run();
-      return { insertedId: result.lastInsertRowid };
+      await db.prepare(sql).bind(...values).run();
+      return null; // ✅ success
     }
 
-
     case "put": {
-      if (!payload.id) throw new Error("Missing 'id' for update");
+      if (!payload.id) return { error: "Missing 'id' for update" };
+      if (keys.length === 0) return { error: "No fields to update" };
+
       const { id, ...fields } = payload;
-      if (keys.length === 0) throw new Error("No fields to update");
       const setClause = keys.map(k => `${k} = ?`).join(", ");
       const sql = `UPDATE ${G_tableName} SET ${setClause}, v2 = CURRENT_TIMESTAMP WHERE id = ?`;
       const values = [...keys.map(k => fields[k]), id];
-      const result = await db.prepare(sql).bind(...values).run();
-      return { changes: result.changes };
+      await db.prepare(sql).bind(...values).run();
+      return null; // ✅ success
     }
 
     case "get": {
@@ -60,20 +60,70 @@ async function handleApiRequest(action, payload, env) {
       }
       const stmt = db.prepare(sql).bind(...values);
       const rows = await stmt.all();
-      return { data: rows.results };
+      if (!rows.results || rows.results.length === 0)
+        return { error: "No data found" };
+      return null; // ✅ success (you can still log rows if needed)
     }
 
     case "delete": {
-      if (keys.length === 0) throw new Error("Need at least one condition to delete");
+      if (keys.length === 0)
+        return { error: "Need at least one condition to delete" };
       const where = keys.map(k => `${k} = ?`).join(" AND ");
       const sql = `DELETE FROM ${G_tableName} WHERE ${where}`;
       const values = keys.map(k => payload[k]);
-      const result = await db.prepare(sql).bind(...values).run();
-      return { deleted: result.changes };
+      await db.prepare(sql).bind(...values).run();
+      return null; // ✅ success
     }
 
     default:
-      throw new Error("Unknown action");
+      return { error: "Unknown action" };
+  }
+}
+
+async function handleApi(request, env) {
+  // Auth check
+  const auth = request.headers.get("Authorization");
+  if (!auth || !auth.startsWith("Bearer ")) {
+    return nack("unknown", "UNAUTHORIZED", "Missing or invalid Authorization header");
+  }
+
+  const token = auth.split(" ")[1];
+  if (token !== env.DA_WRITETOKEN) {
+    return nack("unknown", "INVALID_TOKEN", "Token authentication failed");
+  }
+
+  // Parse body
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return nack("unknown", "INVALID_JSON", "Malformed JSON body");
+  }
+
+  const requestId = body.request_id || "unknown";
+  if (!body.payload || !body.payload.message) {
+    return nack(requestId, "INVALID_FIELD", "Missing required field: payload.message");
+  }
+  const action = body.action || "";
+
+  G_ENV = env;
+  G_DB = env.DB;
+
+  try {
+    const ret = await handleApiRequest(action, body.payload, env);
+    
+    if (ret == null) {
+      // ✅ clean success
+      return ack(requestId);
+    } else {
+      // ❌ something wrong — log and nack
+      await errDelegate(`handleApiRequest failed: ${JSON.stringify(ret, null, 2)}`);
+      return nack(requestId, "REQUEST_FAILED", "Operation failed"); 
+    }
+
+  } catch (err) {
+    await errDelegate(`handleApiRequest exception: ${err.message}`);
+    return nack(requestId, "DB_ERROR", err.message);
   }
 }
 
