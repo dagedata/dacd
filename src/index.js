@@ -185,7 +185,7 @@ async function postLogToGateway(request_id, level, message) {
     }
   };
 
-  await fetch(url, {
+  const resp1 = await fetch(url, {
     method: "POST",
     headers: {
       "Authorization": "Bearer aaa",
@@ -193,6 +193,7 @@ async function postLogToGateway(request_id, level, message) {
     },
     body: JSON.stringify(body)
   }).catch(err => console.error("Error posting log:", err));
+  console.log(await resp1.text())
 }
 
 let G_ENV = null;
