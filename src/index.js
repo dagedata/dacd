@@ -101,8 +101,8 @@ async function handleApi(request, env) {
   }
 
   const requestId = body.request_id || "unknown";
-  if (!body.payload || !body.payload.message) {
-    return nack(requestId, "INVALID_FIELD", "Missing required field: payload.message");
+  if (!body.payload) {
+    return nack(requestId, "INVALID_FIELD", "Missing required field: payload");
   }
   const action = body.action || "";
 
